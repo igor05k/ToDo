@@ -30,7 +30,15 @@
                             <outlet property="delegate" destination="ToL-8T-auF" id="mmr-U6-oym"/>
                         </connections>
                     </tableView>
-                    <navigationItem key="navigationItem" title="ToDo" id="WYe-S9-yWC"/>
+                    <toolbarItems/>
+                    <navigationItem key="navigationItem" title="ToDo" id="WYe-S9-yWC">
+                        <barButtonItem key="rightBarButtonItem" systemItem="add" id="sOb-ce-pHy">
+                            <connections>
+                                <action selector="addButton:" destination="ToL-8T-auF" id="E4Q-rV-bb8"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                    <simulatedToolbarMetrics key="simulatedBottomBarMetrics"/>
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Nlp-yC-tl9" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
@@ -44,7 +52,7 @@
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="bKd-Is-Tvd">
                         <rect key="frame" x="0.0" y="44" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="barTintColor" red="0.20041293160000001" green="0.7047741823" blue="0.55750628840000005" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="barTintColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
                     <connections>
