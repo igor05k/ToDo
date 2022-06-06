@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreData
 
 class ToDoViewController: UITableViewController {
     
@@ -14,11 +15,22 @@ class ToDoViewController: UITableViewController {
     var items = [Item]()
     
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        let refreshControl = UIRefreshControl()
+        refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
+        refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
+        tableView.refreshControl = refreshControl
         loadItems()
     }
+    
+    @objc func refresh(_ sender: Any) {
+        loadItems()
+        refreshControl?.endRefreshing()
+    }
+
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return items.count
@@ -47,8 +59,9 @@ class ToDoViewController: UITableViewController {
         }
         
         let action = UIAlertAction(title: "Add", style: .default) { alert in
-            let newItemObject = Item()
+            let newItemObject = Item(context: self.context)
             newItemObject.title = textField.text!
+            newItemObject.done = false
             if textField.text != "" {
                 self.items.append(newItemObject)
                 self.saveItems()
@@ -60,26 +73,48 @@ class ToDoViewController: UITableViewController {
     }
     
     func saveItems() {
-        let encoder = PropertyListEncoder()
         do {
-            let data = try encoder.encode(items)
-            try data.write(to: dataFilePath!)
+            try context.save()
         } catch  {
-            print("error while encoding \(error)")
+            print("ERROR WHILE SAVING: \(error)")
         }
         
-        self.tableView.reloadData()
+        tableView.reloadData()
     }
     
-    func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                items = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("error while decoding \(error)")
-            }
-            
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+        do {
+            items = try context.fetch(request)
+        } catch  {
+            print("ERROR WHILE FETCHING REQUEST \(error)")
         }
+        tableView.reloadData()
+    }
+}
+
+extension ToDoViewController: UISearchBarDelegate {
+    
+    func requestPredicateAndSortDecriptors(searchText: String) {
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchText)
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request)
+        
+        tableView.reloadData()
+    }
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        requestPredicateAndSortDecriptors(searchText: searchBar.text!)
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 && searchText.isEmpty {
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
+//        requestPredicateAndSortDecriptors(searchText: searchText)
     }
 }
