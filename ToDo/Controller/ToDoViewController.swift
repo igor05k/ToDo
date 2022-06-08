@@ -14,6 +14,12 @@ class ToDoViewController: UITableViewController {
     
     var items = [Item]()
     
+    var categorySelected: Category? {
+        didSet {
+            loadItems()
+        }
+    }
+    
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
@@ -23,14 +29,13 @@ class ToDoViewController: UITableViewController {
         refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
         refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
         tableView.refreshControl = refreshControl
-        loadItems()
     }
     
     @objc func refresh(_ sender: Any) {
         loadItems()
         refreshControl?.endRefreshing()
     }
-
+    
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return items.count
@@ -49,6 +54,15 @@ class ToDoViewController: UITableViewController {
         saveItems()
         tableView.deselectRow(at: indexPath, animated: true)
     }
+    
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            context.delete(items[indexPath.row])
+            items.remove(at: indexPath.row)
+            saveItems()
+        }
+    }
+
     @IBAction func addButton(_ sender: UIBarButtonItem) {
         var textField = UITextField()
         
@@ -57,17 +71,28 @@ class ToDoViewController: UITableViewController {
             textField = field
             field.placeholder = "Create a new item..."
         }
+        alert.view?.tintColor = .darkGray
         
         let action = UIAlertAction(title: "Add", style: .default) { alert in
-            let newItemObject = Item(context: self.context)
-            newItemObject.title = textField.text!
-            newItemObject.done = false
-            if textField.text != "" {
+            guard textField.text == nil else {
+                print("invalid title")
+                return
+            }
+
+                let newItemObject = Item(context: self.context)
+                newItemObject.title = textField.text!
+                newItemObject.done = false
+                newItemObject.parentCategory = self.categorySelected
+
                 self.items.append(newItemObject)
                 self.saveItems()
-            }
         }
         
+        let dismissAction = UIAlertAction(title: "Cancel", style: .default) { dismiss in
+            alert.dismiss(animated: true, completion: nil)
+        }
+        
+        alert.addAction(dismissAction)
         alert.addAction(action)
         present(alert, animated: true, completion: nil)
     }
@@ -82,7 +107,16 @@ class ToDoViewController: UITableViewController {
         tableView.reloadData()
     }
     
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", categorySelected!.name!)
+//        request.predicate = categoryPredicate
+        
+        if let additionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
+        }
+        
         do {
             items = try context.fetch(request)
         } catch  {
@@ -109,12 +143,14 @@ extension ToDoViewController: UISearchBarDelegate {
     }
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        if searchBar.text?.count == 0 && searchText.isEmpty {
+        if searchBar.text?.count == 0 {
             loadItems()
             DispatchQueue.main.async {
                 searchBar.resignFirstResponder()
             }
         }
-//        requestPredicateAndSortDecriptors(searchText: searchText)
+        if searchText.count > 0 {
+            requestPredicateAndSortDecriptors(searchText: searchText)
+        }
     }
 }
